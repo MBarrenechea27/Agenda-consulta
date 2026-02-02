@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda Los Jardines - Control Total</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .grid-semana { display: grid; grid-template-columns: 80px repeat(7, minmax(160px, 1fr)); }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .sticky-col { position: sticky; left: 0; z-index: 20; }
+        
+        /* ESTADOS SOLICITADOS */
+        .estado-confirmado { background-color: #eff6ff; border: 2px solid #3b82f6; color: #1e40af; }
+        .estado-pendiente { background-color: #fefce8; border: 2px solid #eab308; color: #854d0e; }
+        .estado-anulado { background-color: #fef2f2; border: 2px solid #ef4444; color: #991b1b; opacity: 0.8; }
+        
+        .btn-doc-active { background-color: #3b82f6 !important; color: white !important; font-weight: bold; transform: scale(1.05); }
+    </style>
+</head>
+<body class="bg-slate-200 flex h-screen overflow-hidden font-sans text-slate-900">
+
+    <aside class="w-64 bg-[#1e293b] text-white flex flex-col p-6 shadow-2xl">
+        <div class="mb-10 text-center">
+            <h1 class="text-xl font-bold text-blue-400 tracking-tighter uppercase leading-none">Los Jardines</h1>
+            <p class="text-[10px] text-slate-500 tracking-widest uppercase mt-2 font-bold">Consulta Médica</p>
+        </div>
+        
+        <div class="space-y-4">
+            <p class="text-[10px] text-slate-500 font-bold uppercase ml-2 tracking-widest">Agenda Semanal</p>
+            <button id="btnBarrenechea" onclick="seleccionarDoc('Dra. Barrenechea')" class="w-full flex items-center gap-3 p-4 rounded-2xl transition-all text-sm hover:bg-slate-800 shadow-lg">
+                👩‍⚕️ <span>Dra. Barrenechea</span>
+            </button>
+            <button id="btnMoreno" onclick="seleccionarDoc('Dr. Moreno')" class="w-full flex items-center gap-3 p-4 rounded-2xl transition-all text-sm hover:bg-slate-800 shadow-lg">
+                👨‍⚕️ <span>Dr. Moreno</span>
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col min-w-0">
+        <header class="p-4 bg-white border-b border-slate-300 flex justify-between items-center shadow-sm">
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2">
+                    <button onclick="cambiarSemana(-7)" class="p-2 hover:bg-slate-100 rounded-full text-blue-600 font-bold transition-all active:scale-90">◀</button>
+                    <div class="text-center min-w-[220px]">
+                        <h2 id="tituloSemana" class="text-lg font-bold text-slate-700 leading-none italic"></h2>
+                        <p id="rangoFechas" class="text-[10px] text-slate-400 font-bold uppercase mt-1"></p>
+                    </div>
+                    <button onclick="cambiarSemana(7)" class="p-2 hover:bg-slate-100 rounded-full text-blue-600 font-bold transition-all active:scale-90">▶</button>
+                </div>
+                <div class="h-8 w-[2px] bg-slate-200"></div>
+                <h3 id="docActualDisplay" class="text-blue-600 font-black uppercase tracking-tighter text-sm"></h3>
+            </div>
+            <button onclick="irAHoy()" class="bg-blue-50 text-blue-600 px-6 py-2 rounded-lg font-bold text-[10px] hover:bg-blue-100 uppercase border border-blue-200 shadow-sm transition-all">Hoy</button>
+        </header>
+
+        <div class="flex-1 overflow-auto custom-scrollbar bg-slate-100">
+            <div id="cabeceraDias" class="grid-semana bg-slate-50 sticky top-0 z-30 border-b border-slate-300 shadow-sm font-bold text-[11px] text-slate-500 uppercase"></div>
+            <div id="grid-cuerpo" class="grid-semana bg-white border-t border-slate-100"></div>
+        </div>
+    </main>
+
+    <div id="miModal" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 border border-slate-200">
+            <h3 class="text-xl font-bold text-slate-800 mb-2 border-b pb-2 text-center text-blue-600 uppercase italic">Estado de Cita</h3>
+            <p id="infoCita" class="text-sm font-bold text-slate-500 mb-6 bg-slate-50 p-3 rounded-xl text-center border border-slate-200 uppercase text-[10px]"></p>
+            
+            <div class="space-y-4">
+                <input type="text" id="nombreP" placeholder="👤 Nombre Completo" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-sm transition-all">
+                <input type="text" id="rutP" placeholder="🪪 RUT" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-all">
+                <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                    <span class="bg-slate-200 px-4 py-4 text-sm font-bold text-slate-600 border-r">+56</span>
+                    <input type="tel" id="telP" placeholder="9 1234 5678" class="flex-1 bg-transparent p-4 outline-none text-sm font-bold">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-2 mt-8">
+                <button onclick="guardar('confirmado')" class="w-full py-4 bg-blue-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-blue-700 shadow-lg transition-all">1. Hora Confirmada</button>
+                <button onclick="guardar('pendiente')" class="w-full py-4 bg-yellow-500 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-yellow-600 shadow-lg transition-all">2. Por Confirmar</button>
+                <button onclick="guardar('anulado')" class="w-full py-4 bg-red-600 text-white font-bold rounded-xl text-[10px] uppercase tracking-widest hover:bg-red-700 shadow-lg transition-all">3. Hora Anulada</button>
+                <div class="flex gap-2 mt-4">
+                    <button onclick="eliminar()" class="flex-1 py-2 bg-rose-50 text-rose-600 font-bold rounded-xl text-[10px] uppercase border border-rose-100 hover:bg-rose-100 transition-all">Eliminar</button>
+                    <button onclick="cerrar()" class="flex-1 py-2 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-all">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let fechaReferencia = new Date();
+        let docActivo = 'Dra. Barrenechea';
+        let datosCitas = {};
+        let celdaActiva = null;
+
+        function cargarMemoria() {
+            const key = docActivo === 'Dra. Barrenechea' ? 'agenda_Barrenechea' : 'agenda_Moreno';
+            datosCitas = JSON.parse(localStorage.getItem(key)) || {};
+        }
+
+        function seleccionarDoc(nombre) {
+            docActivo = nombre;
+            document.getElementById('docActualDisplay').innerText = `Mostrando: ${nombre}`;
+            const btnB = document.getElementById('btnBarrenechea');
+            const btnM = document.getElementById('btnMoreno');
+            btnB.className = nombre === 'Dra. Barrenechea' ? 'w-full flex items-center gap-3 p-4 rounded-2xl transition-all text-sm shadow-lg btn-doc-active' : 'w-full flex items-center gap-3 p-4 rounded-2xl transition-all text-sm hover:bg-slate-800 shadow-lg text-slate-300';
+            btnM.className = nombre === 'Dr. Moreno' ? 'w-full flex items-center gap-3 p-4 rounded-2xl transition-all text-sm shadow-lg btn-doc-active' : 'w-full flex items-center gap-3 p-4 rounded-2xl transition-all text-sm hover:bg-slate-800 shadow-lg text-slate-300';
+            cargarMemoria();
+            cargarAgenda();
+        }
+
+        function obtenerLunes(d) {
+            let fecha = new Date(d);
+            let day = fecha.getDay();
+            let diff = fecha.getDate() - day + (day === 0 ? -6 : 1);
+            return new Date(fecha.setDate(diff));
+        }
+
+        function cargarAgenda() {
+            const lunes = obtenerLunes(fechaReferencia);
+            const cuerpo = document.getElementById('grid-cuerpo');
+            const cabecera = document.getElementById('cabeceraDias');
+            const diasNombre = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+            const finSemana = new Date(lunes); finSemana.setDate(lunes.getDate() + 6);
+            document.getElementById('tituloSemana').innerText = `Semana de ${lunes.toLocaleDateString('es-ES', {month: 'long'})}`;
+            document.getElementById('rangoFechas').innerText = `${lunes.getDate()} de ${lunes.toLocaleDateString('es-ES', {month: 'short'})} al ${finSemana.getDate()} de ${finSemana.toLocaleDateString('es-ES', {month: 'short', year: 'numeric'})}`;
+
+            cabecera.innerHTML = '<div class="p-4 bg-slate-100 sticky-col border-r"></div>';
+            for(let i=0; i<7; i++) {
+                let d = new Date(lunes); d.setDate(lunes.getDate() + i);
+                let color = i === 5 ? 'text-blue-600 bg-blue-50' : i === 6 ? 'text-rose-600 bg-rose-50' : '';
+                cabecera.innerHTML += `<div class="p-4 text-center border-r border-slate-200 ${color}">${diasNombre[i].substring(0,3)} ${d.getDate()}</div>`;
+            }
+
+            cuerpo.innerHTML = "";
+            for (let h = 9; h <= 21; h++) {
+                ["00", "30"].forEach(m => {
+                    if (h === 21 && m === "30") return;
+                    const hora = `${h.toString().padStart(2, '0')}:${m}`;
+                    const divHora = document.createElement('div');
+                    divHora.className = "p-4 border-b border-r border-slate-100 text-[11px] font-bold text-slate-400 text-center bg-slate-50 flex items-center justify-center sticky-col";
+                    divHora.innerText = hora;
+                    cuerpo.appendChild(divHora);
+
+                    for (let i = 0; i < 7; i++) {
+                        let d = new Date(lunes); d.setDate(lunes.getDate() + i);
+                        const idCelda = `${d.toISOString().split('T')[0]}_${hora}`;
+                        const celda = document.createElement('div');
+                        celda.id = idCelda;
+                        celda.className = "p-1 border-b border-r border-slate-100 min-h-[95px] hover:bg-blue-50/50 cursor-pointer transition-all";
+                        celda.onclick = () => abrir(idCelda, hora, diasNombre[i], d.getDate(), d.toLocaleDateString('es-ES', {month: 'long'}));
+                        cuerpo.appendChild(celda);
+                        if (datosCitas[idCelda]) dibujarTarjeta(celda, datosCitas[idCelda]);
+                    }
+                });
+            }
+        }
+
+        function cambiarSemana(dias) { fechaReferencia.setDate(fechaReferencia.getDate() + dias); cargarAgenda(); }
+        function irAHoy() { fechaReferencia = new Date(); cargarAgenda(); }
+
+        function abrir(id, hora, diaNombre, diaNum, mes) {
+            celdaActiva = id;
+            document.getElementById('infoCita').innerText = `${diaNombre} ${diaNum} de ${mes} - ${hora}`;
+            const data = datosCitas[id] || {nombre: "", rut: "", tel: ""};
+            document.getElementById('nombreP').value = data.nombre;
+            document.getElementById('rutP').value = data.rut;
+            document.getElementById('telP').value = data.tel;
+            document.getElementById('miModal').classList.remove('hidden');
+        }
+
+        function cerrar() { document.getElementById('miModal').classList.add('hidden'); }
+
+        function eliminar() {
+            if(confirm("¿Eliminar ficha del paciente?")) {
+                delete datosCitas[celdaActiva];
+                guardarMemoria(); cargarAgenda(); cerrar();
+            }
+        }
+
+        function guardarMemoria() {
+            const key = docActivo === 'Dra. Barrenechea' ? 'agenda_Barrenechea' : 'agenda_Moreno';
+            localStorage.setItem(key, JSON.stringify(datosCitas));
+        }
+
+        function guardar(estado) {
+            const n = document.getElementById('nombreP').value;
+            if (!n) return alert("Ingrese el nombre del paciente");
+            datosCitas[celdaActiva] = { 
+                nombre: n, rut: document.getElementById('rutP').value, 
+                tel: document.getElementById('telP').value,
+                labelCita: document.getElementById('infoCita').innerText,
+                estado: estado 
+            };
+            guardarMemoria(); cargarAgenda(); cerrar();
+        }
+
+        function dibujarTarjeta(div, data) {
+            const art = docActivo === 'Dra. Barrenechea' ? 'la' : 'el';
+            const msj = `Hola, lo saludamos de la Consulta Los Jardines. Le escribimos para recordarle su cita con ${art} ${docActivo} el día ${data.labelCita}. Si desea confirmar, reprogramar o anular su hora, por favor avísenos por aquí. ¡Que tenga un excelente día!`;
+            const tel = (data.tel || "").replace(/\s+/g, '');
+            let clase = "estado-pendiente";
+            let txt = "POR CONFIRMAR";
+            if(data.estado === 'confirmado') { clase = "estado-confirmado"; txt = "CONFIRMADA"; }
+            if(data.estado === 'anulado') { clase = "estado-anulado"; txt = "ANULADA"; }
+            
+            div.innerHTML = `
+                <div class="${clase} p-2 rounded-2xl h-full shadow-sm flex flex-col justify-between transition-all border">
+                    <div>
+                        <div class="font-black uppercase text-[12px] leading-tight break-words mb-1">${data.nombre}</div>
+                        <div class="text-[8px] font-bold tracking-widest">${txt}</div>
+                    </div>
+                    <div class="flex justify-between items-center mt-2 border-t border-black/5 pt-2">
+                        <span class="text-[9px] font-bold">📞 ${data.tel}</span>
+                        <a href="https://wa.me/56${tel}?text=${encodeURIComponent(msj)}" target="_blank" class="bg-green-500 text-white p-2 rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all">
+                            <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326z"/></svg>
+                        </a>
+                    </div>
+                </div>`;
+        }
+
+        window.onload = () => { seleccionarDoc('Dra. Barrenechea'); };
+    </script>
+</body>
+</html>
