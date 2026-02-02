@@ -196,8 +196,12 @@
         }
 
         function dibujarTarjeta(div, data) {
-            const art = docActivo === 'Dra. Barrenechea' ? 'la' : 'el';
-            const msj = `Hola, lo saludamos de la Consulta Los Jardines. Le escribimos para recordarle su cita con ${art} ${docActivo} el día ${data.labelCita}. Si desea confirmar, reprogramar o anular su hora, por favor avísenos por aquí. ¡Que tenga un excelente día!`;
+            // Lógica personalizada para el mensaje de WhatsApp solicitada
+            const esLorena = docActivo === 'Dra. Barrenechea';
+            const especialidad = esLorena ? "cita dental con la Dra. Lorena Barrenechea" : "cita médica con el Dr. Raúl Moreno";
+            
+            const msj = `Hola, lo saludamos desde el Centro Médico y Dental Los Jardines. Le escribimos para recordarle su ${especialidad} el día ${data.labelCita}. Si desea confirmar, reprogramar o anular su hora, por favor avísenos por aquí. ¡Que tenga un excelente día!`;
+            
             const tel = (data.tel || "").replace(/\s+/g, '');
             let clase = "estado-pendiente";
             let txt = "POR CONFIRMAR";
